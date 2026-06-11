@@ -1,0 +1,12 @@
+build/
+.CMake/
+thirdparty/
+imgui.ini
+.helix/
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.log
+*.exe
+*.out
+*.app
