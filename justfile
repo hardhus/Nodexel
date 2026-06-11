@@ -6,5 +6,5 @@ setup:
 build:
     cmake --build build
 
-run:
+run: build
     ./build/Nodexel

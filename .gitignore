@@ -1,12 +1,41 @@
-build/
-.CMake/
-thirdparty/
-imgui.ini
-.helix/
-Thumbs.db
-Desktop.ini
-.DS_Store
-*.log
+# Prerequisites
 *.exe
 *.out
 *.app
+*.shared
+*.dll
+*.so
+*.dylib
+
+# Build directories
+build/
+bin/
+lib/
+.CMake/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+thirdparty
+
+# IDEs, Editors and Tooling
+.helix/
+.clangd
+compile_commands.json
+.cache/
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.vcxproj
+
+# Operating System Files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# App Specific Runtime Data
+imgui.ini
+*.log

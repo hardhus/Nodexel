@@ -1,8 +1,11 @@
 #include "editor_layout.hpp"
+#include "graph/node_graph.hpp"
 #include "imgui.h"
 #include "imnodes.h"
+#include <memory>
 
-EditorLayout::EditorLayout() {}
+EditorLayout::EditorLayout() { m_node_graph = std::make_unique<NodeGraph>(); }
+EditorLayout::~EditorLayout() = default;
 
 void EditorLayout::render() {
   renderControlPanel();
@@ -17,52 +20,134 @@ void EditorLayout::renderControlPanel() {
   ImGui::Separator();
 
   if (ImGui::Button("Reprocess Image")) {
-    // async trigger
+    m_node_graph->updatePipeline();
   }
   ImGui::End();
 }
 
 void EditorLayout::renderNodeGraph() {
   ImGui::Begin("Node Graph Editor");
-  ImNodes::BeginNodeEditor();
 
-  ImNodes::BeginNode(1);
-  ImNodes::BeginNodeTitleBar();
-  ImGui::Text("Input Image");
-  ImNodes::EndNodeTitleBar();
-  ImNodes::BeginOutputAttribute(2);
-  ImGui::Text("Image Data");
-  ImNodes::EndOutputAttribute();
-  ImNodes::EndNode();
+  if (m_node_graph)
+    m_node_graph->drawGraph();
 
-  ImNodes::BeginNode(3);
-  ImNodes::BeginNodeTitleBar();
-  ImGui::Text("Pixelate Filter");
-  ImNodes::EndNodeTitleBar();
-  ImNodes::BeginInputAttribute(4);
-  ImGui::Text("In");
-  ImNodes::EndInputAttribute();
-  ImNodes::BeginOutputAttribute(5);
-  ImGui::Text("Out");
-  ImNodes::EndOutputAttribute();
-  ImNodes::EndNode();
-
-  ImNodes::EndNodeEditor();
   ImGui::End();
+}
+
+void handleImageInteractionAndDraw(ImTextureID texId, float &zoom, ImVec2 &pan,
+                                   int origWidth, int origHeight) {
+  ImVec2 availRegion = ImGui::GetContentRegionAvail();
+  if (availRegion.x <= 0.0f || availRegion.y <= 0.0f)
+    return;
+
+  float ratioX = availRegion.x / (float)origWidth;
+  float ratioY = availRegion.y / (float)origHeight;
+  float baseScale = std::min(ratioX, ratioY) * 0.85f;
+
+  float finalWidth = (float)origWidth * baseScale * zoom;
+  float finalHeight = (float)origHeight * baseScale * zoom;
+  ImVec2 size = ImVec2(finalWidth, finalHeight);
+
+  ImVec2 pos = ImGui::GetCursorScreenPos();
+  ImVec2 centerPos;
+  centerPos.x = pos.x + (availRegion.x - size.x) * 0.5f + pan.x;
+  centerPos.y = pos.y + (availRegion.y - size.y) * 0.5f + pan.y;
+
+  ImVec2 screenMax = ImVec2(pos.x + availRegion.x, pos.y + availRegion.y);
+
+  bool isContentHovered = ImGui::IsMouseHoveringRect(pos, screenMax);
+
+  if (isContentHovered && ImGui::GetIO().MouseWheel != 0.0f) {
+    zoom += ImGui::GetIO().MouseWheel * 0.1f;
+    zoom = std::max(0.1f, std::min(zoom, 10.0f));
+  }
+
+  if (isContentHovered && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+    ImVec2 delta = ImGui::GetIO().MouseDelta;
+    pan.x += delta.x;
+    pan.y += delta.y;
+  }
+
+  if (isContentHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+    zoom = 1.0f;
+    pan = ImVec2(0.0f, 0.0f);
+  }
+
+  ImGui::SetCursorScreenPos(centerPos);
+  ImGui::Image(texId, size);
 }
 
 void EditorLayout::renderPreviewPanel() {
   ImGui::Begin("Image Preview");
 
+  if (m_node_graph) {
+    ImGui::Checkbox("Sync Viewport Zoom/Pan", &m_node_graph->viewSynced);
+    ImGui::SameLine();
+    if (ImGui::Button("Reset View")) {
+      m_node_graph->previewZoom = 1.0f;
+      m_node_graph->previewPan = ImVec2(0.0f, 0.0f);
+      m_node_graph->outputZoom = 1.0f;
+      m_node_graph->outputPan = ImVec2(0.0f, 0.0f);
+    }
+  }
+  ImGui::Separator();
+
   ImGui::Columns(2, "PreviewColumns");
 
   ImGui::Text("Original Image");
-  ImGui::Dummy(ImVec2(200, 200));
+  ImGui::Separator();
+
+  ImTextureID inputTexId = 0;
+  int imgW = 512;
+  int imgH = 512;
+
+  if (m_node_graph) {
+    inputTexId = m_node_graph->getLatestInputTextureId();
+    imgW = m_node_graph->getLatestInputWidth();
+    imgH = m_node_graph->getLatestInputHeight();
+  }
+
+  if (inputTexId) {
+    ImVec2 pos = ImGui::GetCursorScreenPos();
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    ImGui::PushClipRect(pos, ImVec2(pos.x + avail.x, pos.y + avail.y), true);
+
+    handleImageInteractionAndDraw(inputTexId, m_node_graph->previewZoom,
+                                  m_node_graph->previewPan, imgW, imgH);
+
+    ImGui::PopClipRect();
+  } else {
+    ImGui::Dummy(ImVec2(200, 200));
+    ImGui::TextDisabled("(Drag & Drop an image into the graph)");
+  }
+
+  if (m_node_graph && m_node_graph->viewSynced) {
+    m_node_graph->outputZoom = m_node_graph->previewZoom;
+    m_node_graph->outputPan = m_node_graph->previewPan;
+  }
 
   ImGui::NextColumn();
 
   ImGui::Text("Pixel Art Result");
-  ImGui::Dummy(ImVec2(200, 200));
+  ImGui::Separator();
+
+  if (m_node_graph) {
+    ImTextureID outputTexId = m_node_graph->getLatestOutputTextureId();
+    if (outputTexId) {
+      ImVec2 pos = ImGui::GetCursorScreenPos();
+      ImVec2 avail = ImGui::GetContentRegionAvail();
+      ImGui::PushClipRect(pos, ImVec2(pos.x + avail.x, pos.y + avail.y), true);
+
+      handleImageInteractionAndDraw(outputTexId, m_node_graph->outputZoom,
+                                    m_node_graph->outputPan, imgW, imgH);
+
+      ImGui::PopClipRect();
+    } else {
+      ImGui::Dummy(ImVec2(200, 200));
+      ImGui::TextDisabled(
+          "(Connect Input Image to Output Image Node to Preview)");
+    }
+  }
 
   ImGui::Columns(1);
   ImGui::End();

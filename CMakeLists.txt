@@ -48,9 +48,33 @@ FetchContent_Declare(
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imnodes)
 FetchContent_Populate(imnodes)
 
-# ---- 4. PROJECT COMPILE ----
-add_executable(${PROJECT_NAME} src/main.cpp src/application.cpp
-                               src/editor_layout.cpp)
+# ---- 4. STB IMAGE DOWNLOAD ----
+FetchContent_Declare(
+  stb
+  URL https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+  DOWNLOAD_NO_EXTRACT TRUE
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/stb)
+FetchContent_Populate(stb)
+
+if(MINGW)
+  set(CMAKE_EXE_LINKER_FLAGS
+      "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
+endif()
+
+# ---- 5. PROJECT COMPILE ----
+add_executable(
+  ${PROJECT_NAME}
+  src/main.cpp
+  src/application.cpp
+  src/editor_layout.cpp
+  src/pipeline/texture.cpp
+  src/graph/node_graph.cpp
+  src/graph/nodes/input_node.cpp
+  src/graph/nodes/output_node.cpp
+  src/graph/nodes/pixelate_node.cpp
+  src/pipeline/pipeline_manager.cpp
+  src/graph/nodes/pixelate_node.cpp
+  src/graph/nodes/color_quantize_node.cpp)
 
 target_include_directories(
   ${PROJECT_NAME}
@@ -58,7 +82,8 @@ target_include_directories(
           ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/glfw/include
           ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui
           ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends
-          ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imnodes)
+          ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imnodes
+          ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/stb)
 
 target_sources(
   ${PROJECT_NAME}
