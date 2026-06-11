@@ -7,7 +7,13 @@ namespace Nodexel::Types {
 
 enum class PinType { Input, Output };
 
-enum class NodeType { InputImage, Pixelate, ColorQuantize, OutputImage };
+enum class NodeType {
+  InputImage,
+  Pixelate,
+  ColorQuantize,
+  Rescale,
+  OutputImage
+};
 
 struct Pin {
   int id;

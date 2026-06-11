@@ -89,13 +89,26 @@ void EditorLayout::renderPreviewPanel() {
       m_node_graph->outputZoom = 1.0f;
       m_node_graph->outputPan = ImVec2(0.0f, 0.0f);
     }
+
+    if (m_node_graph->isPipelineProcessing()) {
+      ImGui::SameLine();
+      if ((int)(ImGui::GetTime() * 3.0f) % 2 == 0) {
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.0f, 1.0f),
+                           "[ PROCESSING... ]");
+      } else {
+        ImGui::TextDisabled("[ PROCESSING... ]");
+      }
+    }
   }
   ImGui::Separator();
 
-  ImGui::Columns(2, "PreviewColumns");
-
+  float totalWidth = ImGui::GetContentRegionAvail().x;
   ImGui::Text("Original Image");
+  ImGui::SameLine(totalWidth * 0.5f + 10.0f);
+  ImGui::Text("Pixel Art Result");
   ImGui::Separator();
+
+  ImGui::Columns(2, "PreviewColumns", false);
 
   ImTextureID inputTexId = 0;
   int imgW = 512;
@@ -111,10 +124,8 @@ void EditorLayout::renderPreviewPanel() {
     ImVec2 pos = ImGui::GetCursorScreenPos();
     ImVec2 avail = ImGui::GetContentRegionAvail();
     ImGui::PushClipRect(pos, ImVec2(pos.x + avail.x, pos.y + avail.y), true);
-
     handleImageInteractionAndDraw(inputTexId, m_node_graph->previewZoom,
                                   m_node_graph->previewPan, imgW, imgH);
-
     ImGui::PopClipRect();
   } else {
     ImGui::Dummy(ImVec2(200, 200));
@@ -128,19 +139,14 @@ void EditorLayout::renderPreviewPanel() {
 
   ImGui::NextColumn();
 
-  ImGui::Text("Pixel Art Result");
-  ImGui::Separator();
-
   if (m_node_graph) {
     ImTextureID outputTexId = m_node_graph->getLatestOutputTextureId();
     if (outputTexId) {
       ImVec2 pos = ImGui::GetCursorScreenPos();
       ImVec2 avail = ImGui::GetContentRegionAvail();
       ImGui::PushClipRect(pos, ImVec2(pos.x + avail.x, pos.y + avail.y), true);
-
       handleImageInteractionAndDraw(outputTexId, m_node_graph->outputZoom,
                                     m_node_graph->outputPan, imgW, imgH);
-
       ImGui::PopClipRect();
     } else {
       ImGui::Dummy(ImVec2(200, 200));

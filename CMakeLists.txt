@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 if(POLICY CMP0169)
   cmake_policy(SET CMP0169 OLD)
 endif()
@@ -56,12 +57,19 @@ FetchContent_Declare(
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/stb)
 FetchContent_Populate(stb)
 
+# ---- 5. PORTABLE FILE DIALOGS DOWNLOAD ----
+FetchContent_Declare(
+  pfd
+  GIT_REPOSITORY https://github.com/samhocevar/portable-file-dialogs.git
+  GIT_TAG main)
+FetchContent_MakeAvailable(pfd)
+
 if(MINGW)
   set(CMAKE_EXE_LINKER_FLAGS
       "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
 endif()
 
-# ---- 5. PROJECT COMPILE ----
+# ---- 6. PROJECT COMPILE ----
 add_executable(
   ${PROJECT_NAME}
   src/main.cpp
@@ -71,6 +79,7 @@ add_executable(
   src/graph/node_graph.cpp
   src/graph/nodes/input_node.cpp
   src/graph/nodes/output_node.cpp
+  src/graph/nodes/rescale_node.cpp
   src/graph/nodes/pixelate_node.cpp
   src/pipeline/pipeline_manager.cpp
   src/graph/nodes/pixelate_node.cpp
@@ -83,7 +92,8 @@ target_include_directories(
           ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui
           ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui/backends
           ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imnodes
-          ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/stb)
+          ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/stb
+          ${pfd_SOURCE_DIR})
 
 target_sources(
   ${PROJECT_NAME}

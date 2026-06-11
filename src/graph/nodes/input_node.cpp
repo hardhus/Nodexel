@@ -2,6 +2,7 @@
 #include "imnodes.h"
 #include "input_node.hpp"
 #include "pipeline/texture.hpp"
+#include "portable-file-dialogs.h"
 #include <memory>
 
 InputImageNode::InputImageNode(int id, const std::string &path, int outputPinId)
@@ -33,14 +34,42 @@ void InputImageNode::draw() {
   ImNodes::EndNodeTitleBar();
 
   if (ImGui::Button("Browse...")) {
-    // TODO: cross-platform
-  }
-  if (ImGui::IsItemHovered()) {
-    ImGui::SetTooltip(
-        "WIP: Please drag and drop images directly into the window for now!");
+    auto selection = pfd::open_file("Select an image to load", "",
+                                    {"Image Files (.png .jpg .jpeg)",
+                                     "*.png *.jpg *.jpeg", "All Files", "*"})
+                         .result();
+
+    if (!selection.empty()) {
+      filePath = selection[0];
+
+      size_t lastSlash = filePath.find_last_of("/\\");
+      title = "Input: " + ((lastSlash == std::string::npos)
+                               ? filePath
+                               : filePath.substr(lastSlash + 1));
+
+      texture->loadFromFile(filePath);
+    }
   }
 
-  ImGui::TextWrapped("Path: %s", filePath.c_str());
+  std::string fileName = "No File Loaded";
+  if (!filePath.empty() && filePath != "No file loaded") {
+    size_t lastSlash = filePath.find_last_of("/\\");
+    fileName = (lastSlash == std::string::npos)
+                   ? filePath
+                   : filePath.substr(lastSlash + 1);
+  }
+
+  ImGui::Text("File: ");
+  ImGui::SameLine();
+  ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "%s", fileName.c_str());
+
+  if (ImGui::IsItemHovered()) {
+    ImGui::BeginTooltip();
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+    ImGui::TextUnformatted(filePath.c_str());
+    ImGui::PopTextWrapPos();
+    ImGui::EndTooltip();
+  }
 
   if (texture && texture->isValid()) {
     ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Resolution: %dx%d",

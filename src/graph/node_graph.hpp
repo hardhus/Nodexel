@@ -25,6 +25,10 @@ public:
 
   void updatePipeline();
 
+  bool isPipelineProcessing() {
+    return m_pipeline_manager && m_pipeline_manager->isProcessing();
+  }
+
   float previewZoom = 1.0f;
   ImVec2 previewPan{0.0f, 0.0f};
   float outputZoom = 1.0f;

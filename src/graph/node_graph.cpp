@@ -3,9 +3,14 @@
 #include "graph/nodes/input_node.hpp"
 #include "graph/nodes/output_node.hpp"
 #include "graph/nodes/pixelate_node.hpp"
+#include "graph/nodes/rescale_node.hpp"
 #include "imgui.h"
 #include "imnodes.h"
 #include "node_graph.hpp"
+#include "pipeline/algorithms/color_quantize_algo.hpp"
+#include "pipeline/algorithms/pixelate_algo.hpp"
+#include "pipeline/algorithms/rescale_algo.hpp"
+#include "stb_image.h"
 #include <algorithm>
 #include <iostream>
 
@@ -178,6 +183,8 @@ void NodeGraph::drawGraph() {
       }
     }
   }
+
+  updatePipeline();
 }
 
 void NodeGraph::handleContextMenu() {
@@ -201,6 +208,15 @@ void NodeGraph::handleContextMenu() {
       int out_pin = getNextId();
       m_nodes.push_back(
           std::make_shared<ColorQuantizeNode>(node_id, in_pin, out_pin));
+      ImNodes::SetNodeEditorSpacePos(node_id, m_menu_spawn_pos);
+    }
+
+    if (ImGui::MenuItem("Add Nearest Neighbor Rescale")) {
+      int node_id = getNextId();
+      int in_pin = getNextId();
+      int out_pin = getNextId();
+      m_nodes.push_back(
+          std::make_shared<RescaleNode>(node_id, in_pin, out_pin));
       ImNodes::SetNodeEditorSpacePos(node_id, m_menu_spawn_pos);
     }
 
@@ -364,12 +380,13 @@ void NodeGraph::updatePipeline() {
     return;
 
   std::string sourceFilePath = "";
-  int blockSize = 1;
-  int colorCount = 8;
-  bool useQuantize = false;
+  bool traceCompleted = false;
+
+  std::vector<Nodexel::Pipeline::FilterStep> dynamicSteps;
+  std::shared_ptr<RescaleNode> activeRescaleNode = nullptr;
 
   int currentInputPinId = activeOutput->inputs[0].id;
-  bool traceCompleted = false;
+  std::string currentGraphStateHash = "";
 
   for (int step = 0; step < 10; ++step) {
     int foundFromPinId = -1;
@@ -402,29 +419,74 @@ void NodeGraph::updatePipeline() {
       if (inputNode && !inputNode->filePath.empty() &&
           inputNode->filePath != "No file loaded") {
         sourceFilePath = inputNode->filePath;
+        currentGraphStateHash += sourceFilePath;
         traceCompleted = true;
       }
       break;
     } else if (parentNode->type == Nodexel::Types::NodeType::Pixelate) {
       auto pixNode = std::static_pointer_cast<PixelateNode>(parentNode);
-      if (pixNode)
-        blockSize = pixNode->blockSize;
-
+      if (pixNode) {
+        int bSize = pixNode->blockSize;
+        currentGraphStateHash += "|P:" + std::to_string(bSize);
+        dynamicSteps.push_back([bSize](Nodexel::Pipeline::ImageBuffer &buf) {
+          Nodexel::Pipeline::Algorithms::pixelate(buf, bSize);
+        });
+      }
       if (!parentNode->inputs.empty())
         currentInputPinId = parentNode->inputs[0].id;
     } else if (parentNode->type == Nodexel::Types::NodeType::ColorQuantize) {
       auto quantNode = std::static_pointer_cast<ColorQuantizeNode>(parentNode);
       if (quantNode) {
-        colorCount = quantNode->colorCount;
-        useQuantize = true;
+        int cCount = quantNode->colorCount;
+        currentGraphStateHash += "|Q:" + std::to_string(cCount);
+        dynamicSteps.push_back([cCount](Nodexel::Pipeline::ImageBuffer &buf) {
+          Nodexel::Pipeline::Algorithms::colorQuantize(buf, cCount);
+        });
+      }
+      if (!parentNode->inputs.empty())
+        currentInputPinId = parentNode->inputs[0].id;
+    } else if (parentNode->type == Nodexel::Types::NodeType::Rescale) {
+      auto resNode = std::static_pointer_cast<RescaleNode>(parentNode);
+      if (resNode) {
+        activeRescaleNode = resNode;
+        int tW = resNode->customWidth;
+        int tH = resNode->customHeight;
+        currentGraphStateHash +=
+            "|R:" + std::to_string(tW) + "," + std::to_string(tH);
+        dynamicSteps.push_back([tW, tH](Nodexel::Pipeline::ImageBuffer &buf) {
+          Nodexel::Pipeline::Algorithms::rescaleNearestNeighbor(buf, tW, tH);
+        });
       }
       if (!parentNode->inputs.empty())
         currentInputPinId = parentNode->inputs[0].id;
     }
   }
 
+  static std::string lastGraphStateHash = "";
+  static bool hasPendingUpdate = false;
+  static std::vector<Nodexel::Pipeline::FilterStep> pendingSteps;
+  static std::string pendingSourcePath = "";
+
   if (traceCompleted && !sourceFilePath.empty()) {
-    m_pipeline_manager->triggerProcess(sourceFilePath, blockSize, colorCount,
-                                       useQuantize);
+    int srcW = 0, srcH = 0;
+    stbi_info(sourceFilePath.c_str(), &srcW, &srcH, nullptr);
+    if (activeRescaleNode && srcW > 0 && srcH > 0) {
+      activeRescaleNode->currentSrcWidth = srcW;
+      activeRescaleNode->currentSrcHeight = srcH;
+    }
+
+    if (currentGraphStateHash != lastGraphStateHash) {
+      lastGraphStateHash = currentGraphStateHash;
+      pendingSteps = dynamicSteps;
+      pendingSourcePath = sourceFilePath;
+      hasPendingUpdate = true;
+    }
+
+    if (hasPendingUpdate && m_pipeline_manager &&
+        !m_pipeline_manager->isProcessing()) {
+      hasPendingUpdate = false;
+      std::reverse(pendingSteps.begin(), pendingSteps.end());
+      m_pipeline_manager->triggerProcess(pendingSourcePath, pendingSteps);
+    }
   }
 }

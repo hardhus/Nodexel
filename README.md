@@ -6,10 +6,10 @@ A high-performance, asynchronous node-based engine designed for real-time retro 
 
 ## 🛠️ Core Features
 
-*   **Asynchronous Processing Pipeline:** Process massive high-resolution imagery on background threads (`std::thread`) using thread-safe double buffering (`std::mutex`). The UI never drops frames, stays responsive at 60+ FPS even during heavy calculations.
-*   **Topological Graph Traversal:** Features an automated reverse-dependency tracer starting from the output image node back to the root source, dynamically gathering parameter states across active connections.
-*   **Ergonomic Node & Link Mechanics:** Seamless graph interactions managed via bounded priority hotkeys (`A` to add, `X` to safely disconnect/delete with confirmation modals, and `Shift + X` for instant cascading pruning of orphaned connections).
-*   **Sharp Pixel Fidelity Viewport:** Enforces strict window boundaries using isolated viewport clipping (`ImGui::PushClipRect`) and crisp nearest-neighbor texture filtering (`GL_NEAREST`) to prevent pixel blur during high zooms.
+* **Asynchronous Processing Pipeline:** Process massive high-resolution imagery on background threads (`std::thread`) using thread-safe double buffering (`std::mutex`). The UI never drops frames, stays responsive at 60+ FPS even during heavy calculations.
+* **Topological Graph Traversal:** Features an automated reverse-dependency tracer starting from the output image node back to the root source, dynamically gathering parameter states across active connections.
+* **Ergonomic Node & Link Mechanics:** Seamless graph interactions managed via bounded priority hotkeys (`A` to add, `X` to safely disconnect/delete with confirmation modals, and `Shift + X` for instant cascading pruning of orphaned connections).
+* **Sharp Pixel Fidelity Viewport:** Enforces strict window boundaries using isolated viewport clipping (`ImGui::PushClipRect`) and crisp nearest-neighbor texture filtering (`GL_NEAREST`) to prevent pixel blur during high zooms.
 
 ---
 
@@ -27,6 +27,7 @@ A high-performance, asynchronous node-based engine designed for real-time retro 
 ### 🧪 Pixel Shading & Effects Nodes
 - [x] **Pixelate Node:** Real-time block-size sampling adjustment slider.
 - [x] **Color Quantize Node:** Color depth reduction matrix for retro bit-depth simulation.
+- [x] **Nearest Neighbor Rescale Node:** Precision sprite resizing tool with aspect ratio locks and pixel/percentage mapping.
 - [ ] **Dithering Shader Node:** Ordered Bayer matrices and error-diffusion (Floyd-Steinberg) dithering for authentic retro texturing.
 - [ ] **Outline & Edge Detection Node:** Sobel/Scharr filter mapping to apply crisp contours onto pixelized shapes.
 - [ ] **Palettization Node:** Custom palette loading support (.GPL or Hex files) to force images into classic retro hardware constraints (e.g., GameBoy, NES, Pico-8).
